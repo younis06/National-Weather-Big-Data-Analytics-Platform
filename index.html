@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>N-WEIS Working Prototype</title>
+    <style>
+      :root {
+        --bg: #061822;
+        --bg2: #0d2230;
+        --panel: rgba(14, 30, 42, 0.96);
+        --line: rgba(150, 190, 222, 0.22);
+        --text: #edf8ff;
+        --muted: #9bb9ca;
+        --blue: #5bc8ff;
+        --cyan: #61f4db;
+        --green: #76e6a2;
+        --amber: #ffcb67;
+        --red: #ff7777;
+        --purple: #b38dff;
+        --shadow: rgba(0, 0, 0, 0.22);
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; min-height: 100%;
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        background: radial-gradient(circle at top left, rgba(91,197,255,0.12), transparent 20%), linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+        color: var(--text);
+      }
+      body { padding: 20px; }
+      .app { max-width: 1500px; margin: 0 auto; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: rgba(10, 22, 34, 0.92); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; box-shadow: 0 18px 40px rgba(0,0,0,0.18); }
+      .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: 0.06em; }
+      .brand-badge { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: linear-gradient(135deg, var(--blue), var(--cyan)); color: #062437; font-size: 20px; }
+      .nav { display: flex; gap: 10px; flex-wrap: wrap; }
+      .chip, .toggle, .district-btn { border: 1px solid var(--line); background: rgba(255,255,255,0.02); color: var(--muted); border-radius: 999px; padding: 8px 14px; font-size: 12px; cursor: pointer; transition: 0.2s ease; }
+      .chip.active, .toggle.active, .district-btn.active { background: rgba(91,197,255,0.12); color: var(--text); border-color: rgba(91,197,255,0.35); }
+      .status-alert { color: #ffd7d7; border-color: rgba(255,107,107,0.35); background: rgba(255,107,107,0.06); }
+      .hero { display: grid; grid-template-columns: 1.35fr 0.65fr; gap: 20px; margin-top: 20px; }
+      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 18px 36px var(--shadow); }
+      .map-panel, .info-panel, .panel-inner { padding: 18px; }
+      .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 10px; }
+      .h2 { margin: 0; font-size: 17px; font-weight: 700; }
+      .tag { padding: 7px 10px; border-radius: 999px; border: 1px solid rgba(112,227,160,0.3); background: rgba(112,227,160,0.08); color: var(--green); font-size: 12px; }
+      .map-box { position: relative; overflow: hidden; height: 430px; border-radius: 18px; border: 1px solid var(--line); background: linear-gradient(135deg, rgba(59,89,118,0.7), rgba(13,25,35,0.7)); }
+      .map-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 28px 28px; }
+      .district-outline { position: absolute; inset: 12% 8% 12% 10%; border: 1px solid rgba(255,255,255,0.18); border-radius: 34% 40% 52% 38% / 30% 38% 56% 46%; transform: rotate(-8deg); background: rgba(255,255,255,0.03); }
+      .district-outline::before, .district-outline::after { content: ""; position: absolute; border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; }
+      .district-outline::before { inset: 18% 18% 24% 26%; }
+      .district-outline::after { inset: 28% 28% 16% 16%; }
+      .zone { position: absolute; border-radius: 50%; backdrop-filter: blur(3px); border: 1px solid rgba(255,255,255,0.24); }
+      .zone.red { width: 180px; height: 180px; left: 52%; top: 30%; background: rgba(255,107,107,0.14); border-color: rgba(255,107,107,0.35); }
+      .zone.amber { width: 220px; height: 220px; left: 36%; top: 42%; background: rgba(255,200,87,0.1); border-color: rgba(255,200,87,0.35); }
+      .zone.green { width: 120px; height: 120px; left: 62%; top: 50%; background: rgba(112,227,160,0.12); border-color: rgba(112,227,160,0.25); }
+      .marker { position: absolute; width: 20px; height: 20px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 6px rgba(255,107,107,0.18), 0 0 18px rgba(255,107,107,0.6); }
+      .marker::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: rgba(255,255,255,0.88); }
+      .m1 { left: 57%; top: 56%; }
+      .m2 { left: 46%; top: 49%; }
+      .m3 { left: 64%; top: 38%; }
+      .legend { position: absolute; bottom: 16px; left: 16px; display: flex; flex-wrap: wrap; gap: 10px; }
+      .legend-item { background: rgba(8,20,31,0.82); border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+      .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+      .dot.red { background: var(--red); }
+      .dot.amber { background: var(--amber); }
+      .dot.green { background: var(--green); }
+      .event-title { font-size: 32px; margin: 0; }
+      .meta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      .confidence { font-size: 13px; color: var(--muted); }
+      .confidence strong { font-size: 30px; color: var(--cyan); }
+      .stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .mini-stat { background: rgba(255,255,255,0.02); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+      .mini-stat .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+      .mini-stat .value { margin-top: 8px; font-size: 24px; font-weight: 700; }
+      .mini-stat .delta { margin-top: 6px; font-size: 12px; color: var(--green); }
+      .mini-stat .delta.warn { color: var(--amber); }
+      .mini-stat .delta.bad { color: var(--red); }
+      .info-box { margin-top: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+      .info-box .heading { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+      .info-box .body { margin-top: 8px; line-height: 1.6; }
+      .timeline-grid, .details-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; margin-top: 20px; }
+      .button-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+      .timeline-wrap { position: relative; padding-top: 10px; }
+      .timeline-line { position: absolute; left: 0; right: 0; top: 42px; height: 3px; background: linear-gradient(90deg, rgba(91,197,255,0.22), rgba(255,255,255,0.06), rgba(255,107,107,0.2)); }
+      .steps { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); }
+      .step { text-align: center; position: relative; cursor: pointer; padding-top: 6px; }
+      .step-dot { width: 18px; height: 18px; border-radius: 50%; margin: 0 auto 12px; position: relative; z-index: 1; background: rgba(16,37,49,0.9); border: 3px solid var(--line); }
+      .step.active .step-dot { background: linear-gradient(135deg, var(--cyan), var(--blue)); border-color: rgba(99,241,214,0.8); box-shadow: 0 0 18px rgba(99,241,214,0.5); }
+      .step .label { color: var(--muted); font-size: 12px; }
+      .step .time { margin-top: 4px; font-size: 12px; font-weight: 600; }
+      .single-source-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+      .source-card { background: rgba(255,255,255,0.02); border: 1px solid var(--line); border-radius: 14px; padding: 12px; cursor: pointer; transition: 0.2s ease; }
+      .source-card.active { border-color: rgba(91,197,255,0.35); background: rgba(91,197,255,0.06); }
+      .source-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+      .source-name { font-size: 13px; font-weight: 700; }
+      .source-score { color: var(--cyan); font-size: 13px; font-weight: 700; }
+      .source-bar { margin-top: 10px; height: 8px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
+      .source-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--blue), var(--cyan)); }
+      .source-meta { margin-top: 10px; font-size: 12px; color: var(--muted); }
+      .impact-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+      .impact-table th, .impact-table td { text-align: left; border-bottom: 1px solid var(--line); padding: 11px 10px; }
+      .impact-table th { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+      .impact-table td:last-child { text-align: right; }
+      .severity { display: inline-flex; padding: 6px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+      .severity.high { background: rgba(255,107,107,0.12); border: 1px solid rgba(255,107,107,0.25); color: #ffb4b4; }
+      .severity.med { background: rgba(255,200,87,0.1); border: 1px solid rgba(255,200,87,0.25); color: #f9d993; }
+      .severity.low { background: rgba(112,227,160,0.1); border: 1px solid rgba(112,227,160,0.25); color: #9ef0c1; }
+      .simulator { margin-top: 22px; }
+      .slider-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-top: 14px; margin-bottom: 10px; }
+      .slider-label { color: var(--muted); }
+      .slider-value { font-size: 24px; font-weight: 700; color: var(--cyan); }
+      input[type="range"] { width: 100%; accent-color: var(--cyan); }
+      .prediction-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-top: 18px; }
+      .prediction-box { background: rgba(255,255,255,0.02); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+      .prediction-box .label { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+      .prediction-box .value { margin-top: 8px; font-size: 26px; font-weight: 700; }
+      .workflow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+      .stage { flex: 1; min-width: 120px; text-align: center; padding: 12px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,0.02); color: var(--muted); font-size: 12px; }
+      .stage.active { background: rgba(99,241,214,0.08); border-color: rgba(99,241,214,0.35); color: var(--text); }
+      .stage.final { background: rgba(112,227,160,0.1); border-color: rgba(112,227,160,0.35); color: var(--green); }
+      .quality-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+      .quality-card { background: rgba(255,255,255,0.02); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+      .quality-card .label { color: var(--muted); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+      .quality-card .value { margin-top: 8px; font-size: 24px; font-weight: 700; }
+      .quality-card .status { margin-top: 5px; font-size: 12px; color: var(--green); }
+      .footnote { margin-top: 12px; color: var(--muted); font-size: 12px; }
+      select { padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,0.03); color: var(--text); }
+      @media (max-width: 1080px) { .hero, .timeline-grid, .details-grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand"><div class="brand-badge">⛈</div><span>N-WEIS</span></div>
+        <nav class="nav">
+          <button class="chip active" data-view="live">Live Event</button>
+          <button class="chip" data-view="district">District View</button>
+          <button class="chip" data-view="impact">Impact Map</button>
+          <button class="chip status-alert" id="statusChip">Status: Verified</button>
+        </nav>
+      </header>
+
+      <main class="hero">
+        <section class="panel map-panel">
+          <div class="section-head">
+            <h2 class="h2">Operational Weather Event</h2>
+            <span class="tag" id="riskLabel">Flood Risk: Moderate</span>
+          </div>
+          <div class="map-box" id="mapBox" data-layer="rainfall">
+            <div class="map-grid"></div>
+            <div class="district-outline"></div>
+            <div class="zone red" id="zoneRed"></div>
+            <div class="zone amber" id="zoneAmber"></div>
+            <div class="zone green" id="zoneGreen"></div>
+            <div class="marker m1"></div>
+            <div class="marker m2"></div>
+            <div class="marker m3"></div>
+            <div class="legend">
+              <span class="legend-item"><span class="dot red"></span> Extreme risk</span>
+              <span class="legend-item"><span class="dot amber"></span> Alert corridor</span>
+              <span class="legend-item"><span class="dot green"></span> Safe zone</span>
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel info-panel">
+          <div class="meta-row">
+            <h1 class="event-title" id="eventTitle">Cyclonic Rain Event</h1>
+            <div class="confidence"><strong id="confidenceValue">94%</strong><br />confidence</div>
+          </div>
+          <div class="stat-grid">
+            <div class="mini-stat"><div class="label">Rainfall</div><div class="value" id="rainValue">248 mm</div><div class="delta" id="rainDelta">+42% vs normal</div></div>
+            <div class="mini-stat"><div class="label">Flood area</div><div class="value" id="floodAreaMain">12.4 km²</div><div class="delta warn" id="floodDelta">+3.1 km²</div></div>
+            <div class="mini-stat"><div class="label">Infrastructure</div><div class="value" id="infraValue">18</div><div class="delta" id="infraDelta">7 critical</div></div>
+            <div class="mini-stat"><div class="label">Population</div><div class="value" id="populationValue">1.3M</div><div class="delta bad" id="populationDelta">Exposure risk</div></div>
+          </div>
+          <div class="info-box"><div class="heading">Last verified</div><div class="body" id="verifiedText">18:45 IST · Cross-source validation complete across IMD, radar, and satellite feeds. Peak rainfall intensity observed in central Chennai corridor.</div></div>
+        </aside>
+      </main>
+
+      <section class="timeline-grid">
+        <div class="panel panel-inner">
+          <div class="section-head"><h3 class="h2">Weather Event Timeline</h3><div class="tag">Operational</div></div>
+          <div class="button-row" id="stageButtons">
+            <button class="toggle active" data-stage="detected">Detected</button>
+            <button class="toggle" data-stage="validated">Validated</button>
+            <button class="toggle" data-stage="cross-check">Cross-check</button>
+            <button class="toggle" data-stage="review">Under Review</button>
+            <button class="toggle" data-stage="verified">Verified</button>
+          </div>
+          <div class="timeline-wrap">
+            <div class="timeline-line"></div>
+            <div class="steps" id="timelineSteps">
+              <div class="step active" data-stage="detected"><div class="step-dot"></div><div class="label">Detected</div><div class="time">09:00</div></div>
+              <div class="step" data-stage="validated"><div class="step-dot"></div><div class="label">Validated</div><div class="time">11:30</div></div>
+              <div class="step" data-stage="cross-check"><div class="step-dot"></div><div class="label">Cross-check</div><div class="time">13:15</div></div>
+              <div class="step" data-stage="review"><div class="step-dot"></div><div class="label">Review</div><div class="time">16:00</div></div>
+              <div class="step" data-stage="verified"><div class="step-dot"></div><div class="label">Verified</div><div class="time">18:45</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel panel-inner">
+          <div class="section-head"><h3 class="h2">Source Agreement</h3><div class="tag" id="sourceTag">High</div></div>
+          <div class="single-source-grid" id="sourceGrid">
+            <div class="source-card active" data-source="IMD"><div class="source-header"><div class="source-name">IMD</div><div class="source-score">94%</div></div><div class="source-bar"><span style="width:94%"></span></div><div class="source-meta">Rainfall intensity confirmed</div></div>
+            <div class="source-card" data-source="Satellite"><div class="source-header"><div class="source-name">Satellite</div><div class="source-score">88%</div></div><div class="source-bar"><span style="width:88%"></span></div><div class="source-meta">Cloud cover pattern matches</div></div>
+            <div class="source-card" data-source="Radar"><div class="source-header"><div class="source-name">Radar</div><div class="source-score">91%</div></div><div class="source-bar"><span style="width:91%"></span></div><div class="source-meta">Peak corridor identified</div></div>
+            <div class="source-card" data-source="Historical"><div class="source-header"><div class="source-name">Historical</div><div class="source-score">86%</div></div><div class="source-bar"><span style="width:86%"></span></div><div class="source-meta">Comparable to 2023 event</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="details-grid">
+        <div class="panel panel-inner">
+          <div class="section-head">
+            <h3 class="h2">Impact & Infrastructure</h3>
+            <select id="districtSelect">
+              <option value="Chennai">Chennai</option>
+              <option value="Coimbatore">Coimbatore</option>
+              <option value="Madurai">Madurai</option>
+            </select>
+          </div>
+          <table class="impact-table"><thead><tr><th>Asset</th><th>Status</th><th>Exposure</th></tr></thead><tbody id="impactTableBody"></tbody></table>
+        </div>
+
+        <div class="panel panel-inner">
+          <div class="section-head"><h3 class="h2">Historical Event Matching</h3><div class="tag" id="matchTag">87% match</div></div>
+          <div class="info-box"><div class="heading">Closest match</div><div class="body" id="historicalMatchText">2023 Chennai Flood Event — similar accumulation profile, urban drainage pressure, and peak precipitation timing.</div></div>
+          <div class="workflow" id="workflowStages">
+            <div class="stage">Detected</div>
+            <div class="stage active">Validated</div>
+            <div class="stage active">Cross-source</div>
+            <div class="stage">Review</div>
+            <div class="stage final">Verified</div>
+          </div>
+
+          <div class="simulator">
+            <div class="section-head" style="margin-bottom:0;"><h3 class="h2">What-if Simulation</h3><div class="tag">Scenario</div></div>
+            <div class="slider-row"><div class="slider-label">Rainfall intensity</div><div class="slider-value" id="rainfallValue">+20%</div></div>
+            <input id="rainSlider" type="range" min="-20" max="40" value="20" />
+            <div class="prediction-grid">
+              <div class="prediction-box"><div class="label">Flood risk area</div><div class="value" id="floodAreaSim">19.0 km²</div></div>
+              <div class="prediction-box"><div class="label">Risk score</div><div class="value" id="riskScore">82/100</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="details-grid" style="margin-top:20px;">
+        <div class="panel panel-inner">
+          <div class="section-head"><h3 class="h2">Verification Workflow</h3><div class="tag" id="verificationTag">System check</div></div>
+          <div class="workflow" id="verificationWorkflow">
+            <div class="stage">Detected</div>
+            <div class="stage active">Data Validated</div>
+            <div class="stage active">Cross-source checked</div>
+            <div class="stage active">Under Review</div>
+            <div class="stage final">VERIFIED</div>
+          </div>
+        </div>
+
+        <div class="panel panel-inner">
+          <div class="section-head"><h3 class="h2">Data Quality Dashboard</h3><div class="tag">Monitoring</div></div>
+          <div class="quality-grid" id="qualityGrid">
+            <div class="quality-card"><div class="label">Missing data</div><div class="value">2.4%</div><div class="status">Low risk</div></div>
+            <div class="quality-card"><div class="label">Duplicate data</div><div class="value">0.8%</div><div class="status">Acceptable</div></div>
+            <div class="quality-card"><div class="label">Outliers</div><div class="value">1.1%</div><div class="status">Monitored</div></div>
+            <div class="quality-card"><div class="label">Source reliability</div><div class="value">92%</div><div class="status">Strong</div></div>
+          </div>
+          <div class="footnote">This prototype simulates live weather intelligence using plausible district-level operational values.</div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const districtData = {
+        Chennai: {
+          risk: 'Moderate', confidence: 94, rainfall: 248, floodArea: 12.4, infra: 18, population: '1.3M',
+          match: 87, historical: '2023 Chennai Flood Event', description: 'Similar accumulation profile, urban drainage pressure, and peak precipitation timing.',
+          sourceScores: { IMD: 94, Satellite: 88, Radar: 91, Historical: 86 },
+          impactRows: [
+            ['Flood-prone corridors', 'High', '12.4 km²'],
+            ['Schools', 'Moderate', '14 facilities'],
+            ['Hospitals', 'Moderate', '5 facilities'],
+            ['Road networks', 'High', '18 routes'],
+            ['Power feeders', 'Low', '6 feeders']
+          ],
+          statusText: '18:45 IST · Cross-source validation complete across IMD, radar, and satellite feeds. Peak rainfall intensity observed in central Chennai corridor.'
+        },
+        Coimbatore: {
+          risk: 'High', confidence: 89, rainfall: 197, floodArea: 9.8, infra: 14, population: '0.9M',
+          match: 74, historical: '2015 Cyclone Recovery Event', description: 'River-fed rainfall profile and drainage saturation behavior align closely with historical recovery conditions.',
+          sourceScores: { IMD: 89, Satellite: 84, Radar: 90, Historical: 79 },
+          impactRows: [
+            ['Flood-prone corridors', 'High', '9.8 km²'],
+            ['Schools', 'Moderate', '11 facilities'],
+            ['Hospitals', 'Moderate', '4 facilities'],
+            ['Road networks', 'High', '12 routes'],
+            ['Power feeders', 'Moderate', '8 feeders']
+          ],
+          statusText: '19:10 IST · Peak rainfall pressure observed near river basins and elevated runoff in urban corridors.'
+        },
+        Madurai: {
+          risk: 'Moderate', confidence: 86, rainfall: 164, floodArea: 7.1, infra: 10, population: '1.1M',
+          match: 68, historical: '2021 Coimbatore Storm', description: 'Urban short-duration storm pattern matches previous intense rainfall events with localized drainage spikes.',
+          sourceScores: { IMD: 86, Satellite: 82, Radar: 85, Historical: 73 },
+          impactRows: [
+            ['Flood-prone corridors', 'Moderate', '7.1 km²'],
+            ['Schools', 'Moderate', '9 facilities'],
+            ['Hospitals', 'Low', '3 facilities'],
+            ['Road networks', 'Moderate', '10 routes'],
+            ['Power feeders', 'Low', '5 feeders']
+          ],
+          statusText: '18:58 IST · Localized thunderstorm activity and drainage inundation are under review for secondary impacts.'
+        }
+      };
+
+      const state = { district: 'Chennai', stage: 'verified', layer: 'rainfall', selectedSource: 'IMD', rainfallFactor: 20 };
+      const layerMap = {
+        rainfall: 'linear-gradient(135deg, rgba(59,89,118,0.7), rgba(13,25,35,0.7))',
+        flood: 'linear-gradient(135deg, rgba(87,42,62,0.78), rgba(20,15,23,0.72))',
+        infrastructure: 'linear-gradient(135deg, rgba(40,69,57,0.75), rgba(11,26,25,0.74))'
+      };
+      const stageOrder = ['detected', 'validated', 'cross-check', 'review', 'verified'];
+      const mapBox = document.getElementById('mapBox');
+      const districtSelect = document.getElementById('districtSelect');
+      const sourceCards = document.querySelectorAll('.source-card');
+      const stageButtons = document.querySelectorAll('.toggle');
+      const timelineSteps = document.querySelectorAll('.step');
+      const rainSlider = document.getElementById('rainSlider');
+
+      function renderDashboard() {
+        const data = districtData[state.district];
+        const baseRain = data.rainfall;
+        const baseFlood = data.floodArea;
+        const forecastRain = baseRain * (1 + (state.rainfallFactor / 100));
+        const forecastFlood = baseFlood * (1 + (state.rainfallFactor / 100) * 0.65);
+        const forecastRisk = Math.min(99, Math.max(55, 70 + state.rainfallFactor * 0.55));
+
+        document.getElementById('eventTitle').textContent = `${state.district} Weather Event`;
+        document.getElementById('riskLabel').textContent = `Flood Risk: ${data.risk}`;
+        document.getElementById('confidenceValue').textContent = `${data.confidence}%`;
+        document.getElementById('rainValue').textContent = `${Math.round(forecastRain)} mm`;
+        document.getElementById('rainDelta').textContent = `${Math.round(((forecastRain - baseRain)/baseRain)*100)}% vs current`;
+        document.getElementById('floodAreaMain').textContent = `${baseFlood.toFixed(1)} km²`;
+        document.getElementById('floodDelta').textContent = `+${(forecastFlood - baseFlood).toFixed(1)} km²`;
+        document.getElementById('infraValue').textContent = `${data.infra}`;
+        document.getElementById('infraDelta').textContent = `${Math.round(data.infra * 0.38)} critical`;
+        document.getElementById('populationValue').textContent = data.population;
+        document.getElementById('populationDelta').textContent = data.risk === 'High' ? 'Exposure risk' : data.risk === 'Moderate' ? 'Watch zone' : 'Manageable';
+        document.getElementById('matchTag').textContent = `${data.match}% match`;
+        document.getElementById('historicalMatchText').textContent = `${data.historical} — ${data.description}`;
+        document.getElementById('statusChip').textContent = `Status: ${state.stage === 'verified' ? 'Verified' : 'Reviewing'}`;
+
+        const selectedSource = data.sourceScores[state.selectedSource] || data.sourceScores.IMD;
+        document.getElementById('sourceTag').textContent = selectedSource >= 90 ? 'High' : selectedSource >= 80 ? 'Moderate' : 'Watch';
+
+        sourceCards.forEach(card => {
+          const sourceName = card.dataset.source;
+          const score = data.sourceScores[sourceName] || 0;
+          card.classList.toggle('active', sourceName === state.selectedSource);
+          card.querySelector('.source-score').textContent = `${score}%`;
+          card.querySelector('.source-bar span').style.width = `${score}%`;
+        });
+
+        stageButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.stage === state.stage));
+        timelineSteps.forEach(step => step.classList.toggle('active', step.dataset.stage === state.stage));
+
+        document.getElementById('rainfallValue').textContent = `${state.rainfallFactor >= 0 ? '+' : ''}${state.rainfallFactor}%`;
+        document.getElementById('floodAreaSim').textContent = `${forecastFlood.toFixed(1)} km²`;
+        document.getElementById('riskScore').textContent = `${Math.round(forecastRisk)}/100`;
+
+        const impactTableBody = document.getElementById('impactTableBody');
+        impactTableBody.innerHTML = data.impactRows.map(([name, status, value]) => {
+          const severityClass = status === 'High' ? 'high' : status === 'Moderate' ? 'med' : 'low';
+          return `<tr><td>${name}</td><td><span class="severity ${severityClass}">${status}</span></td><td>${value}</td></tr>`;
+        }).join('');
+
+        const stageMap = {
+          detected: '09:00 · Event detected from IMD signal and anomaly threshold breach.',
+          validated: '11:30 · Static thresholds and sensor consistency validated across feeds.',
+          'cross-check': '13:15 · Satellite and radar cross-check confirm event pattern.',
+          review: '16:00 · Response teams validate affected infrastructure footprint.',
+          verified: '18:45 · Final verification complete and public warning issued.'
+        };
+        document.getElementById('verifiedText').textContent = `${stageMap[state.stage]} ${data.statusText}`;
+
+        const workflowStages = document.querySelectorAll('#workflowStages .stage');
+        workflowStages.forEach((node, index) => {
+          const active = index <= stageOrder.indexOf(state.stage) || (state.stage === 'verified' && index >= 2);
+          node.classList.toggle('active', active && index !== 4);
+          node.classList.toggle('final', index === 4);
+        });
+
+        const verificationWorkflow = document.querySelectorAll('#verificationWorkflow .stage');
+        verificationWorkflow.forEach((node, index) => {
+          const active = index <= stageOrder.indexOf(state.stage) || (state.stage === 'verified' && index >= 2);
+          node.classList.toggle('active', active && index !== 4);
+          node.classList.toggle('final', index === 4);
+        });
+
+        const qualityCards = document.querySelectorAll('#qualityGrid .quality-card');
+        const qualitySet = [
+          { value: '2.4%', status: 'Low risk' },
+          { value: '0.8%', status: 'Acceptable' },
+          { value: '1.1%', status: 'Monitored' },
+          { value: '92%', status: 'Strong' }
+        ];
+        qualityCards.forEach((card, index) => {
+          const q = qualitySet[index];
+          card.querySelector('.value').textContent = q.value;
+          card.querySelector('.status').textContent = q.status;
+        });
+
+        mapBox.style.background = layerMap[state.layer];
+        const zoneRed = document.getElementById('zoneRed');
+        const zoneAmber = document.getElementById('zoneAmber');
+        const zoneGreen = document.getElementById('zoneGreen');
+        const scale = 1 + Math.abs(state.rainfallFactor) / 80;
+        zoneRed.style.transform = `scale(${0.9 + scale * 0.2})`;
+        zoneAmber.style.transform = `scale(${0.8 + scale * 0.22})`;
+        zoneGreen.style.transform = `scale(${0.75 + scale * 0.1})`;
+      }
+
+      stageButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          state.stage = button.dataset.stage;
+          renderDashboard();
+        });
+      });
+
+      timelineSteps.forEach(step => {
+        step.addEventListener('click', () => {
+          state.stage = step.dataset.stage;
+          renderDashboard();
+        });
+      });
+
+      sourceCards.forEach(card => {
+        card.addEventListener('click', () => {
+          state.selectedSource = card.dataset.source;
+          renderDashboard();
+        });
+      });
+
+      districtSelect.addEventListener('change', (e) => { state.district = e.target.value; renderDashboard(); });
+      rainSlider.addEventListener('input', (e) => { state.rainfallFactor = Number(e.target.value); renderDashboard(); });
+      document.querySelectorAll('.chip[data-view]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.chip[data-view]').forEach(item => item.classList.remove('active'));
+          btn.classList.add('active');
+          const view = btn.dataset.view;
+          const layerMapByView = { live: 'rainfall', district: 'infrastructure', impact: 'flood' };
+          state.layer = layerMapByView[view] || 'rainfall';
+          renderDashboard();
+        });
+      });
+
+      renderDashboard();
+    </script>
+  </body>
+</html>
